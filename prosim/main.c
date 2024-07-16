@@ -1,4 +1,5 @@
 //
+// Name: Anish Gondhi, Assignment 3
 // Starter code used, Created by Alex Brodsky on 2023-04-02.
 //
 
@@ -22,14 +23,12 @@ int main() {
         fprintf(stderr, "Bad input, expecting number of process and quantum size\n");
         return -1;
     }
-
-    pthread_t threads[num_nodes];
-
     /* We use an array of pointers to contexts to track the processes.
      */
     context **procs = calloc(num_procs, sizeof(context *));
 
-    process_init(quantum);
+
+    process_init(quantum, num_nodes);
 
     /* Load and admit each process, if an error occurs, we just give up.
      */
@@ -39,18 +38,12 @@ int main() {
             fprintf(stderr, "Bad input, could not load program description\n");
             return -1;
         }
-        process_admit(procs[i]);
+        process_admit(procs[i],procs[i]->node);
     }
 
     /* All the magic happens in here
      */
     process_simulate();
-
-    /* Output the statistics for processes in order of amdmission.
-     */
-    for (int i = 0; i < num_procs; i++) {
-        context_stats(procs[i], stdout);
-    }
 
     return 0;
 }

@@ -181,8 +181,8 @@ extern int context_cur_op(context *cur) {
  * @returns:
  *   none
  */
-extern void context_stats(context *cur, FILE *fout) {
-    fprintf(fout, "Process %d: Run time %d, Block time %d, Wait time %d\n", cur->id,
+extern void context_stats(int time, context *cur, FILE *fout) {
+    fprintf(fout, "| %5.5d | Proc %02d.%02d | Run %d, Block %d, Wait %d\n", time, cur->node, cur->id,
             cur->doop_time, cur->block_time, cur->wait_time);
 }
 

@@ -13,7 +13,7 @@
  * @returns:
  *   returns 1
  */
-extern int process_init(int cpu_quantum);
+extern int process_init(int cpu_quantum, int num_nodes);
 
 /* Admit a process into the simulation
  * @params:
@@ -21,7 +21,7 @@ extern int process_init(int cpu_quantum);
  * @returns:
  *   returns 1
  */
-extern int process_admit(context *proc);
+extern int process_admit(context *proc, int node);
 
 /* Perform the simulation
  * @params:

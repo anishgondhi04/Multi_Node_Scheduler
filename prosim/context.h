@@ -60,7 +60,7 @@ extern context *context_load(FILE *fin);
  * @returns:
  *   none
  */
-extern void context_stats(context *cur, FILE *fout);
+extern void context_stats(int time, context *cur, FILE *fout);
 
 /* returns the duration of the current primitive.
  * @params:
