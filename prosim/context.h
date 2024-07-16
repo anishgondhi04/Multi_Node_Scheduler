@@ -27,6 +27,7 @@ typedef struct context {
     int duration;               /* amount of clock ticks left in current primitive */
     int state;                  /* current state of process: NEW, READY, RUNNING, BLOCKED, FINISHED */
     int enqueue_time;           /* time at which process was added to ready queue */
+    int finish_time;            /* time at which process was added to finished queue */
     int doop_count;             /* number of DOOPs performed */
     int doop_time;              /* number of clock ticks spent executing DOOPs*/
     int block_count;            /* number of BLOCKs performed */
@@ -60,7 +61,7 @@ extern context *context_load(FILE *fin);
  * @returns:
  *   none
  */
-extern void context_stats(int time, context *cur, FILE *fout);
+extern void context_stats(context *cur, FILE *fout);
 
 /* returns the duration of the current primitive.
  * @params:

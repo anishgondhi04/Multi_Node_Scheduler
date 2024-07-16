@@ -1,5 +1,5 @@
 //
-// Starter code used, Created by Alex Brodsky on 2023-05-07.
+// Starter code used, Created by Alex Brodsky on 2023-04-02.
 //
 
 #include "process.h"
@@ -7,13 +7,20 @@
 #include <pthread.h>
 #include <stdlib.h>
 
-static prio_q_t **blocked;  // Array of blocked queues, one per node
-static prio_q_t **ready;    // Array of ready queues, one per node
-static int *node_clock;     // Array of local clocks, one per node
-static int *next_proc_id;
-static int num_nodes;       // Number of nodes
+typedef struct {
+    prio_q_t *blocked;
+    prio_q_t *ready;
+    int node_clock;
+    int next_proc_id;
+    int node_id;
+    int finish_time;
+} node_data_t;
+
+static node_data_t *nodes;
+static int num_nodes;
+static int quantum;
 static pthread_mutex_t finished_mutex = PTHREAD_MUTEX_INITIALIZER;
-static prio_q_t *finished;  // Shared queue for finished processes
+static prio_q_t *finished;
 
 enum {
     PROC_NEW = 0,
@@ -25,21 +32,17 @@ enum {
 
 static char *states[] = {"new", "ready", "running", "blocked", "finished"};
 
-static int quantum;
-
 extern int process_init(int cpu_quantum, int node_count) {
     quantum = cpu_quantum;
     num_nodes = node_count;
 
-    blocked = malloc(num_nodes * sizeof(prio_q_t*));
-    ready = malloc(num_nodes * sizeof(prio_q_t*));
-    node_clock = calloc(num_nodes, sizeof(int));
-    next_proc_id = calloc(num_nodes, sizeof(int));
-
+    nodes = malloc(num_nodes * sizeof(node_data_t));
     for (int i = 0; i < num_nodes; i++) {
-        blocked[i] = prio_q_new();
-        ready[i] = prio_q_new();
-        next_proc_id[i] = 1;
+        nodes[i].blocked = prio_q_new();
+        nodes[i].ready = prio_q_new();
+        nodes[i].node_clock = 0;
+        nodes[i].next_proc_id = 1;
+        nodes[i].node_id = i + 1;
     }
 
     finished = prio_q_new();
@@ -47,7 +50,7 @@ extern int process_init(int cpu_quantum, int node_count) {
 }
 
 static void print_process(context *proc) {
-    printf("[%02d] %5.5d: process %d %s\n", proc->node, node_clock[proc->node], proc->id, states[proc->state]);
+    printf("[%02d] %05d: process %d %s\n", proc->node, nodes[proc->node - 1].node_clock, proc->id, states[proc->state]);
 }
 
 static int actual_priority(context *proc) {
@@ -58,6 +61,8 @@ static int actual_priority(context *proc) {
 }
 
 static void insert_in_queue(context *proc, int next_op) {
+    node_data_t *node = &nodes[proc->node - 1];
+
     if (next_op) {
         context_next_op(proc);
         proc->duration = context_cur_duration(proc);
@@ -67,29 +72,26 @@ static void insert_in_queue(context *proc, int next_op) {
 
     if (op == OP_DOOP) {
         proc->state = PROC_READY;
-        if (ready[proc->node] == NULL) {
-            ready[proc->node] = prio_q_new();
-        }
-        prio_q_add(ready[proc->node], proc, actual_priority(proc));
-        prio_q_add(ready[proc->node], proc, actual_priority(proc));  // Fixed: use proc->node
+        prio_q_add(node->ready, proc, actual_priority(proc));
         proc->wait_count++;
-        proc->enqueue_time = node_clock[proc->node];
+        proc->enqueue_time = node->node_clock;
     } else if (op == OP_BLOCK) {
         proc->state = PROC_BLOCKED;
-        proc->duration += node_clock[proc->node];
-        prio_q_add(blocked[proc->node], proc, proc->duration);  // Fixed: use proc->node
+        proc->duration += node->node_clock;
+        prio_q_add(node->blocked, proc, proc->duration);
     } else {
         proc->state = PROC_FINISHED;
+        proc->finish_time = node->node_clock;
         pthread_mutex_lock(&finished_mutex);
-        prio_q_add(finished, proc, node_clock[proc->node] * 10000 + proc->node * 100 + proc->id);
+        prio_q_add(finished, proc, proc->finish_time * 10000 + proc->node * 100 + proc->id);
         pthread_mutex_unlock(&finished_mutex);
     }
     print_process(proc);
 }
 
-extern int process_admit(context *proc, int node) {
-    proc->node = node;  // Added: set the node for the process
-    proc->id = next_proc_id[node]++;
+extern int process_admit(context *proc) {
+    node_data_t *node = &nodes[proc->node - 1];
+    proc->id = node->next_proc_id++;
     proc->state = PROC_NEW;
     print_process(proc);
     insert_in_queue(proc, 1);
@@ -97,20 +99,21 @@ extern int process_admit(context *proc, int node) {
 }
 
 void *node_simulate(void *arg) {
-    int node = *(int*)arg;
+    int node_id = *(int *) arg;
+    node_data_t *node = &nodes[node_id - 1];
     context *cur = NULL;
     int cpu_quantum;
 
-    while (!prio_q_empty(ready[node]) || !prio_q_empty(blocked[node]) || cur != NULL) {
+    while (!prio_q_empty(node->ready) || !prio_q_empty(node->blocked) || cur != NULL) {
         int preempt = 0;
 
-        while (!prio_q_empty(blocked[node])) {
-            context *proc = prio_q_peek(blocked[node]);
-            if (proc->duration > node_clock[node]) {
+        while (!prio_q_empty(node->blocked)) {
+            context *proc = prio_q_peek(node->blocked);
+            if (proc->duration > node->node_clock) {
                 break;
             }
 
-            prio_q_remove(blocked[node]);
+            prio_q_remove(node->blocked);
             insert_in_queue(proc, 1);
 
             preempt |= cur != NULL && proc->state == PROC_READY &&
@@ -127,36 +130,25 @@ void *node_simulate(void *arg) {
             }
         }
 
-        if (cur == NULL && !prio_q_empty(ready[node])) {
-            cur = prio_q_remove(ready[node]);
-            cur->wait_time += node_clock[node] - cur->enqueue_time;
+        if (cur == NULL && !prio_q_empty(node->ready)) {
+            cur = prio_q_remove(node->ready);
+            cur->wait_time += node->node_clock - cur->enqueue_time;
             cpu_quantum = quantum;
             cur->state = PROC_RUNNING;
             print_process(cur);
         }
 
-        node_clock[node]++;
+        node->node_clock++;
     }
     return NULL;
 }
 
-extern int process_simulate() {
-    pthread_t threads[num_nodes];
-    int node_ids[num_nodes];
-
-    for (int i = 0; i < num_nodes; i++) {
-        node_ids[i] = i;
-        pthread_create(&threads[i], NULL, node_simulate, &node_ids[i]);
-    }
-
-    for (int i = 0; i < num_nodes; i++) {
-        pthread_join(threads[i], NULL);
-    }
+extern void node_stats(FILE *fout) {
 
     while (!prio_q_empty(finished)) {
         context *proc = prio_q_remove(finished);
-        context_stats(node_clock[proc->node], proc, stdout);  // Fixed: removed node_clock[proc->node]
+        context_stats(proc, stdout);
     }
 
-    return 1;
+
 }

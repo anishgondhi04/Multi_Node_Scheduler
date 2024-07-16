@@ -6,7 +6,6 @@
 #define PROSIM_PROCESS_H
 
 #include "context.h"
-
 /* Initialize the simulation
  * @params:
  *   quantum: the CPU quantum to use in the situation
@@ -21,7 +20,7 @@ extern int process_init(int cpu_quantum, int num_nodes);
  * @returns:
  *   returns 1
  */
-extern int process_admit(context *proc, int node);
+extern int process_admit(context *proc);
 
 /* Perform the simulation
  * @params:
@@ -29,6 +28,8 @@ extern int process_admit(context *proc, int node);
  * @returns:
  *   returns 1
  */
-extern int process_simulate();
+void *node_simulate(void *arg);
+
+extern void node_stats(FILE *fout);
 
 #endif //PROSIM_PROCESS_H
