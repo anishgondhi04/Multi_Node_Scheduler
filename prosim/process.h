@@ -30,6 +30,12 @@ extern int process_admit(context *proc);
  */
 void *node_simulate(void *arg);
 
+/* pulls the processes from finished queue in FIFO and calls Context_stats for each process in that order
+ * @params:
+ *   fout: FILE into which the output should be written
+ * @returns:
+ *   none
+ */
 extern void node_stats(FILE *fout);
 
 #endif //PROSIM_PROCESS_H
