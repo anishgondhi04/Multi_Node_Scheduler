@@ -1,0 +1,26 @@
+Assignment 3 Feedback:
+
+Total Grade: 50 / 50
+General Comments: Great work on this assignment! You've demonstrated a strong understanding of multithreading and process synchronization. Your implementation is efficient, well-structured, and passes all the tests.
+
+Functionality: 20 / 20
+Comments: Excellent job! Your solution passes all 10/10 automated tests, which confirms the correctness and functionality of your program.
+
+Solution Quality: 20 / 20
+Comments:
+Correctly uses the pthreads library functions to implement a multi-threaded solution: 4/4
+Your usage of pthread_create and pthread_join is correct and appropriately handles the multithreading requirements.
+Solution is maximally concurrent; one node is simulated per thread, with each thread running a full scheduler simulation that operates independently of the others: 4/4
+Each node is handled by a separate thread, ensuring maximal concurrency.
+Solution is thread-safe; there are no race conditions or other concerns regarding synchronization or shared variables: 4/4
+The implementation appears to be free from race conditions and appropriately handles synchronization.
+Overall approach is appropriate; presented solution could solve the given problem: 4/4
+The overall approach to the problem is well thought out and implemented effectively.
+Holistically, program is clearly attempting to solve the given problem; solution both compiles and is sensible: 4/4
+The solution is sensible and clearly aimed at solving the given problem. It compiles without issues and runs as expected.
+
+Code Clarity: 10 / 10
+Comments:
+Your code is clear, well-organized, and follows good programming practices.
+The use of comments and the logical structure of your code make it easy to understand.
+There are no significant style mistakes or formatting issues.
